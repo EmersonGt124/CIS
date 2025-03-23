@@ -1,0 +1,7 @@
+- LOGRAR QUE LA BARRA LATERALSE HABRA MAS EXPANDIDA INICIAMENTE SI ES NECESARIO PONER UN MARGEN.
+
+#TOP BAR:
+- Continuar con los botones.
+
+#FRAME CENTER:
+- Agregar boton de fonod de pantall

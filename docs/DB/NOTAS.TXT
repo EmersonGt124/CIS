@@ -1,0 +1,166 @@
+######################
+    DB - PostgreSQL    
+######################
+User's:
+root:c
+Emerson:Emerson.
+###############
+User:postgres
+PassWord:1143407053
+port: 5432
+######################
+User:isp_admin
+PassWord:isp_admin123
+######################
+User:app_user
+PassWord:app_user123
+######################
+
+
+usuarios postgree:
+    isp_admin
+    postgree
+
+database:
+    isp_networks:
+        tablas:
+            roles:
+                tecnico_n1 ---> Permiso de CONSULTA
+                tecnico_n2 ---> Permiso de ACTUALIZAR Y CONSULTA
+            usuarios:
+                User:egranda
+                PassWord:egranda123
+                
+                User:dcorrmer
+                PassWord:dcorrmer123
+            dispositivos:
+
+
+#CREAR USUARIOS:#
+
+CREATE DATABASE isp_networks;
+CREATE USER emerson WITH PASSWORD 'emerson123';
+GRANT ALL PRIVILEGES ON DATABASE isp_networks TO emerson;
+
+#PERMISOS OWNER
+ALTER SCHEMA public OWNER TO isp_admin;
+
+#VER USUARIOS:
+SELECT usename FROM pg_user;
+
+#Revocar Privilegios del Usuario:
+REASSIGN OWNED BY emerson TO postgres;  -- Reasigna los objetos a postgres
+DROP OWNED BY emerson;  -- Elimina todos los permisos del usuario
+
+#ELIMINAR USUARIO:
+DROP USER ips_admin;
+
+#TABLA:
+id → Identificador único.
+nombre → Nombre del dispositivo.
+ip → Dirección IP (única).
+tipo → Switch o router.
+modelo → Modelo del equipo.
+fabricante → Marca del dispositivo.
+ubicacion → Dónde está instalado.
+fecha_instalacion → Cuándo fue instalado.
+estado → Activo/Inactivo.
+
+
+CREATE TABLE dispositivos (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    ip VARCHAR(15) UNIQUE NOT NULL,
+    tipo VARCHAR(20) CHECK (tipo IN ('Switch', 'Router')),
+    modelo VARCHAR(50),
+    fabricante VARCHAR(50),
+    ubicacion VARCHAR(100),
+    fecha_instalacion DATE,
+    estado VARCHAR(10) CHECK (estado IN ('Activo', 'Inactivo'))
+);
+
+
+#INSERTAR DATOS A LA TALA:
+INSERT INTO dispositivos (nombre, ip, tipo, modelo, fabricante, ubicacion, fecha_instalacion, estado)
+VALUES 
+('Switch-Core', '192.168.1.1', 'Switch', 'Cisco 3850', 'Cisco', 'Data Center', '2023-01-15', 'Activo')
+
+#VER TABLA:
+SELECT * FROM dispositivos;
+
+############################
+CREAR UNA TABLA CON USUARIOS
+############################
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    rol_id INT NOT NULL REFERENCES roles(id)
+);
+
+
+#TABLA DE ROLES:
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(20) UNIQUE NOT NULL
+);
+
+INSERT INTO roles (nombre) VALUES ('tecnico_n1'), ('tecnico_n2');
+
+Ver roles:
+SELECT * FROM roles;
+
+#crear regla de sergguridad en la tabla paa poder ve o consultars:
+ALTER TABLE dispositivos ENABLE ROW LEVEL SECURITY;
+
+-- Permitir a tecnico_N1 ver y actualizar los dispositivos
+GRANT SELECT, UPDATE ON dispositivos TO tecnico_n1;
+
+-- Permitir a tecnico_N2 solo ver los dispositivos
+GRANT SELECT ON dispositivos TO tecnico_n2;
+
+#QUITAR PERMISO:
+REVOKE SELECT ON dispositivos FROM tecnico_N2;
+
+#VER LOS PERMISOS
+SELECT grantee, privilege_type, table_name
+FROM information_schema.role_table_grants
+WHERE grantee IN ('tecnico_n1', 'tecnico_n2');
+
+/////////////////////////
+
+#ELIMINAR TABLA
+DROP TABLE IF EXISTS usuarios_old CASCADE;
+
+#AGREGAR USUARIOS:
+
+INSERT INTO usuarios (username, password_hash, rol_id) 
+VALUES ('egranda', crypt('egranda123', gen_salt('bf')), 1);
+
+
+#Para verificar el acceso en la aplicación:
+SELECT * FROM usuarios WHERE username = 'tecnico1' AND password_hash = crypt('clave123', password_hash);
+
+#ELIMINAR USUARIO DE TABALA USUARIOS:
+
+Validar si existe:
+SELECT * FROM usuarios WHERE username = 'tecnico1';
+
+Eliminar:
+DELETE FROM usuarios WHERE username = 'tecnico1';
+#####################################
+
+#VISTAS PARA COINSULTAS:
+CREATE VIEW dispositivos_permitidos AS
+SELECT d.*
+FROM dispositivos d
+JOIN usuarios u ON u.rol_id = 1  -- Filtra por técnico_n1
+WHERE u.username = current_setting('app.current_user', true);
+
+#MODIFICAR PATRA AMBOS ROLES O MAS:
+CREATE OR REPLACE VIEW dispositivos_permitidos AS
+SELECT d.*
+FROM dispositivos d
+JOIN usuarios u ON u.rol_id IN (1, 2)  -- Permitir técnico_n1 y técnico_n2
+WHERE u.username = current_setting('app.current_user', true);
+
