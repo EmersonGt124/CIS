@@ -74,10 +74,8 @@ def ver_detalles(tree, parent, icono_path=icono_v):
     centrar_ventana(ventana, parent)
 
 #DEVICES CENTER
-def Add_device(tree, frame_center, size=(100, 100)):  
-    """ Superpone la imagen del equipo en frame_center sin perder la transparencia 
-        y permite redimensionarla al tamaño especificado. """
-    
+def Add_device(tree, frame_center, size=(50, 50)):
+    """ Muestra la imagen del equipo en frame_center sin eliminar las anteriores, conservando transparencia """
     item = tree.selection()
     if not item:
         return  # No hace nada si no hay selección
@@ -92,22 +90,23 @@ def Add_device(tree, frame_center, size=(100, 100)):
     else:
         return  # No muestra imagen si no es router ni switch
 
-    # Cargar la imagen con PIL y mantener transparencia
-    img_pil = Image.open(img_path).convert("RGBA")  
-
-    # Redimensionar la imagen al tamaño deseado
+    # Cargar y redimensionar la imagen manteniendo la transparencia
+    img_pil = Image.open(img_path).convert("RGBA")
     img_pil = img_pil.resize(size, Image.Resampling.LANCZOS)
 
+    # Convertir la imagen a un formato compatible con tkinter
     img_tk = ImageTk.PhotoImage(img_pil)
 
-    # Crear un Canvas para manejar la imagen con transparencia
-    canvas = Canvas(frame_center, width=size[0], height=size[1], highlightthickness=0, bg=frame_center.cget("bg"))
-    canvas.create_image(0, 0, image=img_tk, anchor=NW)
+    # Crear un Canvas para mostrar la imagen
+    canvas = tk.Canvas(frame_center, width=size[0], height=size[1], bg="white", highlightthickness=0)
+    canvas.create_image(0, 0, anchor=NW, image=img_tk)
+    canvas.image = img_tk  # Mantiene la referencia
+    canvas.place(relx=0.5, rely=0.5, anchor="center")
 
-    # Eliminar imágenes previas y agregar la nueva
-    for widget in frame_center.winfo_children():
-        widget.destroy()
+    # Mantener referencia de los widgets agregados
+    if not hasattr(frame_center, "devices"):
+        frame_center.devices = []
+    frame_center.devices.append(canvas)
 
-    canvas.image = img_tk  # Evita que la imagen sea eliminada por el recolector de basura
-    canvas.place(relx=0.5, rely=0.5, anchor="center")  # Centrar la imagen en el frame
-    canvas.lift()  # Traer la imagen al frente
+
+    
