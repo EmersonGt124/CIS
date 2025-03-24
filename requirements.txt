@@ -8,5 +8,8 @@ packaging==24.2
 pillow==11.1.0
 psycopg2==2.9.10
 pyparsing==3.2.1
+PyQt6==6.8.1
+PyQt6-Qt6==6.8.2
+PyQt6_sip==13.10.0
 python-dateutil==2.9.0.post0
 six==1.17.0

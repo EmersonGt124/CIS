@@ -1,8 +1,13 @@
 import tkinter as tk
 from tkinter import messagebox, Label, PhotoImage, Canvas, NW
+from PIL import Image, ImageTk
 import re
 import os
-from PIL import Image, ImageTk
+import sys
+from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow
+from PyQt6.QtGui import QPixmap
+
+
 
 from src._Variables import icono_v, Equipo_switch, Equipo_router
 
@@ -74,39 +79,54 @@ def ver_detalles(tree, parent, icono_path=icono_v):
     centrar_ventana(ventana, parent)
 
 #DEVICES CENTER
-def Add_device(tree, frame_center, size=(50, 50)):
-    """ Muestra la imagen del equipo en frame_center sin eliminar las anteriores, conservando transparencia """
+
+def abrir_pyqt(img_path):
+    """ Abre una ventana en PyQt para mostrar la imagen con transparencia """
+    global app, ventana
+    if not QApplication.instance():
+        app = QApplication(sys.argv)
+    
+    ventana = QMainWindow()
+    ventana.setWindowTitle("Imagen con Transparencia")
+    ventana.setGeometry(100, 100, 300, 300)
+
+    pixmap = QPixmap(img_path)
+    label = QLabel(ventana)
+    label.setPixmap(pixmap)
+    label.setGeometry(50, 50, pixmap.width(), pixmap.height())
+
+    ventana.show()
+
+def Add_device(tree, frame_center, size=(50, 50), bg_color=(240, 240, 240)):
+    """ Muestra la imagen del equipo en frame_center y permite abrirla con PyQt para mantener la transparencia """
     item = tree.selection()
     if not item:
-        return  # No hace nada si no hay selección
+        return  
     
-    nombre_completo = tree.item(item[0], "text")  # Obtener nombre del equipo
+    nombre_completo = tree.item(item[0], "text")  
 
-    # Determinar la imagen según el tipo de equipo
     if "_R" in nombre_completo:
         img_path = Equipo_router
     elif "_S" in nombre_completo:
         img_path = Equipo_switch
     else:
-        return  # No muestra imagen si no es router ni switch
+        return  
 
-    # Cargar y redimensionar la imagen manteniendo la transparencia
-    img_pil = Image.open(img_path).convert("RGBA")
-    img_pil = img_pil.resize(size, Image.Resampling.LANCZOS)
+    img_pil = Image.open(img_path).convert("RGBA")  
+    fondo = Image.new("RGB", img_pil.size, bg_color)  
+    fondo.paste(img_pil, mask=img_pil.split()[3])  
+    fondo = fondo.resize(size, Image.Resampling.LANCZOS)  
 
-    # Convertir la imagen a un formato compatible con tkinter
-    img_tk = ImageTk.PhotoImage(img_pil)
+    img_tk = ImageTk.PhotoImage(fondo)
 
-    # Crear un Canvas para mostrar la imagen
-    canvas = tk.Canvas(frame_center, width=size[0], height=size[1], bg="white", highlightthickness=0)
-    canvas.create_image(0, 0, anchor=NW, image=img_tk)
-    canvas.image = img_tk  # Mantiene la referencia
-    canvas.place(relx=0.5, rely=0.5, anchor="center")
+    label_imagen = tk.Label(frame_center, image=img_tk, bg=f"#{bg_color[0]:02x}{bg_color[1]:02x}{bg_color[2]:02x}")
+    label_imagen.image = img_tk  
+    label_imagen.place(relx=0.5, rely=0.5, anchor="center")  
 
-    # Mantener referencia de los widgets agregados
     if not hasattr(frame_center, "devices"):
         frame_center.devices = []
-    frame_center.devices.append(canvas)
+    frame_center.devices.append(label_imagen)
 
-
-    
+    # Botón para abrir la imagen en PyQt con transparencia
+    boton_pyqt = tk.Button(frame_center, text="Abrir en PyQt", command=lambda: abrir_pyqt(img_path))
+    boton_pyqt.place(relx=0.5, rely=0.6, anchor="center")
