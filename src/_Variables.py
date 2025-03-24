@@ -64,8 +64,8 @@ dispositivo_nombre = ""
 dispositivo_ip = ""
 
 # Rutas de las imágenes de los equipos
-Equipo_router = "lib/assets/Images/control/router_good.png"
-Equipo_switch = "lib/assets/Images/control/switch_good.png"
+Equipo_bad = "lib/assets/Images/control/switch_bad.png"
+Equipo = "lib/assets/Images/control/switch_good.png"
 
 # Ruta Data save_settings
 setting = "lib/assets/config.json"
