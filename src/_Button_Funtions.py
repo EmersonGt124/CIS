@@ -81,7 +81,7 @@ def ver_detalles(tree, parent, icono_path=icono_v):
 #DEVICES CENTER
 
 def abrir_pyqt(img_path):
-    """ Abre una ventana en PyQt para mostrar la imagen con transparencia """
+    """Abre una ventana en PyQt para mostrar la imagen con transparencia"""
     global app, ventana
     if not QApplication.instance():
         app = QApplication(sys.argv)
@@ -98,35 +98,38 @@ def abrir_pyqt(img_path):
     ventana.show()
 
 def Add_device(tree, frame_center, size=(50, 50), bg_color=(240, 240, 240)):
-    """ Muestra la imagen del equipo en frame_center y permite abrirla con PyQt para mantener la transparencia """
+    """Muestra la imagen del equipo en frame_center y abre una ventana PyQt para mantener la transparencia"""
     item = tree.selection()
     if not item:
-        return  
+        return  # No hace nada si no hay selección
     
-    nombre_completo = tree.item(item[0], "text")  
+    nombre_completo = tree.item(item[0], "text")  # Obtener nombre del equipo
 
+    # Determinar la imagen según el tipo de equipo
     if "_R" in nombre_completo:
         img_path = Equipo_router
     elif "_S" in nombre_completo:
         img_path = Equipo_switch
     else:
-        return  
+        return  # No muestra imagen si no es router ni switch
 
-    img_pil = Image.open(img_path).convert("RGBA")  
-    fondo = Image.new("RGB", img_pil.size, bg_color)  
-    fondo.paste(img_pil, mask=img_pil.split()[3])  
-    fondo = fondo.resize(size, Image.Resampling.LANCZOS)  
+    # Cargar la imagen y quitar transparencia
+    img_pil = Image.open(img_path).convert("RGBA")  # Convertir a RGBA para manejar la transparencia
+    fondo = Image.new("RGB", img_pil.size, bg_color)  # Crear fondo sólido
+    fondo.paste(img_pil, mask=img_pil.split()[3])  # Aplicar la imagen sin transparencia
+    fondo = fondo.resize(size, Image.Resampling.LANCZOS)  # Redimensionar
 
     img_tk = ImageTk.PhotoImage(fondo)
 
+    # Crear y mostrar la imagen en frame_center
     label_imagen = tk.Label(frame_center, image=img_tk, bg=f"#{bg_color[0]:02x}{bg_color[1]:02x}{bg_color[2]:02x}")
-    label_imagen.image = img_tk  
-    label_imagen.place(relx=0.5, rely=0.5, anchor="center")  
+    label_imagen.image = img_tk  # Evita que el recolector de basura elimine la imagen
+    label_imagen.place(relx=0.5, rely=0.5, anchor="center")  # Posiciona en el centro
 
+    # Mantener referencia de los widgets agregados
     if not hasattr(frame_center, "devices"):
         frame_center.devices = []
     frame_center.devices.append(label_imagen)
 
-    # Botón para abrir la imagen en PyQt con transparencia
-    boton_pyqt = tk.Button(frame_center, text="Abrir en PyQt", command=lambda: abrir_pyqt(img_path))
-    boton_pyqt.place(relx=0.5, rely=0.6, anchor="center")
+    # Abrir la imagen en PyQt sin esperar un botón
+    abrir_pyqt(img_path)
