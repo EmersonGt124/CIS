@@ -8,33 +8,42 @@ from PIL import Image, ImageTk
 from src._Variables import (
     left_expanded, left_frame, left_toggle_button, 
     right_expanded, right_frame, right_toggle_button,
-    C_fondo, C_texto_blanco, C_fondo_2, C_fondo, C_texto_Azul, C_fondo_2,
-    fuente, icono_v, 
+    C_fondo, C_texto_blanco, C_fondo_2, C_texto_Azul, C_fondo_2,
+    fuente, icono_v, image_list,
     db_connection,
     btn_Home, btn_Options, btn_Help,
     root, center_frame
     )
 
-from src._Button_Funtions import (
-    toggle_background, toggle_background, themes, 
-    add_device, load_settings
-    )
+from src._Button_Funtions import ver_detalles, Add_device
 
 active_menus = []
 
 def toggle_left_bar():
+    global left_expanded, left_frame
     """Expande o colapsa el frame izquierdo."""
-    if left_expanded:
-        left_frame.config(width=10)  # Reducir a solo el botón visible
-        left_toggle_button.config(text="▶")  # Flecha apuntando a la derecha
-    else:
-        left_frame.config(width=300)  # Expandir nuevamente
-        left_toggle_button.config(text="◀")  # Flecha apuntando a la izquierda
+    
+    if left_frame is None:  # Evitar errores si no está inicializado
+        print("Error: left_frame no está inicializado")
+        return
 
-    left_expanded = not left_expanded  # Alternar estado
-    left_frame.update_idletasks()  # Forzar actualización de la GUI
+    if left_expanded:
+        left_frame.config(width=10)
+        left_toggle_button.config(text="▶")
+    else:
+        left_frame.config(width=300)
+        left_toggle_button.config(text="◀")
+
+    left_expanded = not left_expanded
+    left_frame.update_idletasks()
 
 def toggle_right_bar():
+    global right_expanded, right_frame, right_toggle_button
+    
+    if right_frame is None or right_toggle_button is None:
+        print("Error: right_frame o right_toggle_button no están inicializados")
+        return
+
     """Expande o colapsa el frame derecho."""
     if right_expanded:
         right_frame.config(width=10)  # Reducir a solo el botón visible
@@ -44,156 +53,7 @@ def toggle_right_bar():
         right_toggle_button.config(text="▶")  # Flecha apuntando a la derecha
 
     right_expanded = not right_expanded  # Alternar estado
-    right_frame.update_idletasks()  # Forzar actualización de la GUI
-
-class ZoomableCanvas(tk.Frame):
-    def __init__(self, parent, image_path):
-        super().__init__(parent, bg="gray")
-
-        # Crear el canvas con scrollbars
-        self.canvas = tk.Canvas(self, bg=C_fondo, highlightthickness=0)
-        self.h_scrollbar = tk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
-        self.v_scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(xscrollcommand=self.h_scrollbar.set, yscrollcommand=self.v_scrollbar.set)
-
-        # Empaquetar widgets
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-
-        # Configurar la expansión del canvas
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-
-        # Inicializar valores de zoom
-        self.zoom_factor = 1.0
-        self.zoom_step = 0.2  # Cambio proporcional
-        self.image_path = image_path
-        self.region_tags = {}  # Almacenar etiquetas
-
-        # Cargar imagen inicial
-        self.set_background(image_path)
-
-        # Enlazar eventos
-        self.canvas.bind("<MouseWheel>", self.on_mouse_scroll)  # Zoom con la rueda del mouse
-        self.canvas.bind("<ButtonPress-1>", self.start_move)  # Iniciar desplazamiento
-        self.canvas.bind("<B1-Motion>", self.on_drag)  # Arrastrar
-        self.canvas.bind("<Button-3>", self.mostrar_menu)  # Clic derecho para el menú contextual
-        self.canvas.bind("<Button-1>", self.add_region)  # Click izquierdo para añadir regiones
-
-        # Crear menú contextual
-        self.menu = tk.Menu(self.canvas, tearoff=0)
-        self.menu.add_command(label=("Add Device"))
-        self.menu.add_command(label=("Add region"), command=self.request_region_name)
-        self.menu.add_command(label="Background", command=toggle_background)
-        
-    def mostrar_menu(self, event):
-        """Muestra el menú contextual en la posición del cursor."""
-        self.menu.post(event.x_root, event.y_root)
-
-    def set_background(self, new_image_path):
-        """Cambia dinámicamente el fondo y actualiza la configuración guardada."""
-        try:
-            if not new_image_path:
-                return
-            
-            # Actualizar la imagen de fondo
-            self.img_original = Image.open(new_image_path)  # Cargar nueva imagen
-            self.image_path = new_image_path
-            self.update_image()
-
-        except Exception as e:
-            print(f"Error al cargar la imagen: {e}")
-
-    def update_image(self, zoom_x=None, zoom_y=None):
-        """Redimensiona la imagen y ajusta el viewport para centrar el zoom en el cursor."""
-        if not hasattr(self, "img_original"):
-            return  # No hacer nada si la imagen no está definida
-
-        width = int(self.img_original.width * self.zoom_factor)
-        height = int(self.img_original.height * self.zoom_factor)
-        resized_img = self.img_original.resize((width, height), Image.LANCZOS)
-        self.img_tk = ImageTk.PhotoImage(resized_img)
-
-        # Limpiar canvas y agregar imagen
-        self.canvas.delete("all")
-        self.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.img_tk)
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-        # Dibujar etiquetas existentes
-        for label, (x, y) in self.region_tags.items():
-            self.draw_label(x, y, label)
-
-        # Ajustar viewport si hay coordenadas de zoom
-        if zoom_x is not None and zoom_y is not None:
-            canvas_width = self.canvas.winfo_width()
-            canvas_height = self.canvas.winfo_height()
-            x_ratio = zoom_x / canvas_width
-            y_ratio = zoom_y / canvas_height
-            self.canvas.xview_moveto(x_ratio)
-            self.canvas.yview_moveto(y_ratio)
-
-    def on_mouse_scroll(self, event):
-        """Realiza zoom con límites máximo y mínimo."""
-        self.max_zoom = 3.0  # Máximo zoom permitido
-        self.min_zoom = 1.0  # Mínimo zoom permitido
-
-        zoom_x = self.canvas.canvasx(event.x)
-        zoom_y = self.canvas.canvasy(event.y)
-
-        if event.delta > 0:
-            self.zoom_factor = min(self.max_zoom, self.zoom_factor + self.zoom_step)  # Límite superior
-        else:
-            self.zoom_factor = max(self.min_zoom, self.zoom_factor - self.zoom_step)  # Límite inferior
-
-        self.update_image(zoom_x, zoom_y)
-
-    def start_move(self, event):
-        """Guarda la posición inicial del mouse al presionar el botón izquierdo."""
-        self.canvas.scan_mark(event.x, event.y)
-
-    def on_drag(self, event):
-        """Permite arrastrar la imagen moviendo el mouse con el botón izquierdo presionado."""
-        self.canvas.scan_dragto(event.x, event.y, gain=1)
-
-    def request_region_name(self):
-        """Abre una ventana emergente para solicitar el nombre de la nueva región."""
-        self.region_name = None
-        popup = tk.Toplevel(self)
-        popup.title("Nombre de la Región")
-        popup.geometry("250x100")
-        popup.transient(self)
-        popup.grab_set()
-
-        tk.Label(popup, text="Ingrese el nombre de la región:").pack(pady=5)
-        entry = tk.Entry(popup)
-        entry.pack(pady=5)
-
-        def submit():
-            self.region_name = entry.get().strip()
-            popup.destroy()
-
-        tk.Button(popup, text="Aceptar", command=submit).pack(pady=10)
-        popup.wait_window()
-
-    def add_region(self, event):
-        """Agrega una región en la posición del clic."""
-        if not hasattr(self, 'region_name') or self.region_name is None:
-            self.request_region_name()
-
-        if not self.region_name:  # Verificar nuevamente después de la entrada
-            return
-
-        x = self.canvas.canvasx(event.x)
-        y = self.canvas.canvasy(event.y)
-        self.region_tags[self.region_name] = (x, y)
-        self.draw_label(x, y, self.region_name)
-        self.region_name = None  # Reiniciar el nombre para la siguiente entrada
-
-
-    def draw_label(self, x, y, label):
-        """Dibuja una etiqueta en la imagen del canvas."""
-        self.canvas.create_text(x, y, text=label, fill="white", font=("Arial", 12, "bold"), 
-                                anchor="nw", tags=("label"))
-
+    right_frame.update_idletasks()  # Forzar actualización de la GUII
 
 def on_enter(e):
     e.widget.config(fg=C_texto_blanco, bg=C_fondo_2)  
@@ -232,6 +92,10 @@ def show_submenu(event, options, parent_menu=None, offset_x=0, offset_y=0):
 
     menu.geometry(f"+{x}+{y}")
 
+    # Función vacía en caso de que una opción no tenga una función asignada
+    def noop():
+        pass  # No hace nada
+
     # Crear botones dentro del submenú
     for text, command in options:
         btn = tk.Button(menu, text=text, bg=C_fondo, fg=C_texto_blanco,
@@ -250,7 +114,8 @@ def show_submenu(event, options, parent_menu=None, offset_x=0, offset_y=0):
                 offset_y=btn.winfo_y()
             ))
         else:
-            btn.config(command=lambda cmd=command: [cmd(), close_menus()])  # Ejecuta la función y cierra menú
+            # Verificar que `command` no sea `None` antes de ejecutarlo
+            btn.config(command=lambda cmd=command: [cmd(), close_menus()] if cmd else close_menus())
 
     # Asegurar que el menú se cierre si se hace clic fuera
     def close_on_click(event):
@@ -277,9 +142,121 @@ def close_menus():
             menu.destroy()
     active_menus = []
 
+class ZoomableCanvas(tk.Frame):
+    def __init__(self, parent, image_list):
+        super().__init__(parent, bg=C_fondo)
+
+        # Crear el canvas sin bordes visibles
+        self.canvas = tk.Canvas(self, bg=C_fondo, highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
+
+        # Configuración de zoom
+        self.zoom_factor = 1.0
+        self.zoom_step = 0.2
+        self.max_zoom = 3.0
+        self.min_zoom = 1.0
+
+        # Lista de imágenes y control de índice
+        self.image_list = image_list  
+        self.image_index = 0  # Índice inicial
+        self.image_path = self.image_list[self.image_index]  
+        self.image_id = None  
+
+        # Cargar la primera imagen
+        self.set_background(self.image_path)
+
+        # Eventos del canvas
+        self.canvas.bind("<MouseWheel>", self.on_mouse_scroll)  
+        self.canvas.bind("<ButtonPress-1>", self.start_move)  
+        self.canvas.bind("<B1-Motion>", self.on_drag)  
+        self.canvas.bind("<Motion>", self.track_coordinates)  
+        self.canvas.bind("<Button-3>", self.mostrar_menu)  
+
+        # Crear menú contextual
+        self.menu = tk.Menu(self.canvas, tearoff=0, bg=C_fondo, fg="white")
+
+        # Submenú "Add items"
+        submenu_items = tk.Menu(self.menu, tearoff=0, bg=C_fondo, fg="white")
+        submenu_items.add_command(label="Add Device", command=lambda: print("add_device"))
+        self.menu.add_cascade(label="Add items", menu=submenu_items)
+
+        # Opción para cambiar el fondo
+        self.menu.add_command(label="change Background", command=self.change_background)
+
+        # Etiqueta para coordenadas del cursor
+        self.coord_label = tk.Label(self, text="X: 0, Y: 0", bg=C_fondo, fg="white")
+        self.coord_label.pack(side="bottom", anchor="w", padx=10, pady=5)
+
+    def mostrar_menu(self, event):
+        """Muestra el menú contextual en la posición del cursor."""
+        self.menu.post(event.x_root, event.y_root)
+
+    def track_coordinates(self, event):
+        """Actualiza y muestra las coordenadas del cursor en el canvas."""
+        x_canvas = self.canvas.canvasx(event.x)
+        y_canvas = self.canvas.canvasy(event.y)
+        self.coord_label.config(text=f"X: {int(x_canvas)}, Y: {int(y_canvas)}")
+
+    def update_image(self, zoom_x=None, zoom_y=None):
+        """Redimensiona la imagen y la actualiza en el canvas."""
+        if not hasattr(self, "img_original"):
+            return  
+
+        width = int(self.img_original.width * self.zoom_factor)
+        height = int(self.img_original.height * self.zoom_factor)
+        resized_img = self.img_original.resize((width, height), Image.LANCZOS)
+        self.img_tk = ImageTk.PhotoImage(resized_img)
+
+        if self.image_id:
+            self.canvas.delete(self.image_id)
+
+        self.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.img_tk)
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def set_background(self, new_image_path):
+        """Cambia dinámicamente el fondo del canvas."""
+        try:
+            if not new_image_path:
+                return
+            
+            self.img_original = Image.open(new_image_path)  
+            self.image_path = new_image_path
+            self.update_image()
+
+        except Exception as e:
+            print(f"Error al cargar la imagen: {e}")
+
+    def change_background(self):
+        """Cambia la imagen de fondo a la siguiente en la lista."""
+        self.image_index = (self.image_index + 1) % len(self.image_list)
+        new_image_path = self.image_list[self.image_index]
+        self.set_background(new_image_path)
+
+    def on_mouse_scroll(self, event):
+        """Ajusta el zoom dentro de los límites establecidos."""
+        zoom_x = self.canvas.canvasx(event.x)
+        zoom_y = self.canvas.canvasy(event.y)
+
+        if event.delta > 0:
+            self.zoom_factor = min(self.max_zoom, self.zoom_factor + self.zoom_step)  
+        else:
+            self.zoom_factor = max(self.min_zoom, self.zoom_factor - self.zoom_step)  
+
+        self.update_image(zoom_x, zoom_y)
+
+    def start_move(self, event):
+        """Registra la posición inicial del mouse para el desplazamiento."""
+        self.canvas.scan_mark(event.x, event.y)
+
+    def on_drag(self, event):
+        """Permite arrastrar la imagen dentro del canvas."""
+        self.canvas.scan_dragto(event.x, event.y, gain=1)
+
 def screen_control(conn, username):
-    _Button_Funciones.load_settings()
-    
+    global root, db_connection
+    global left_frame, right_frame, left_toggle_button, right_toggle_button
+    global left_expanded, right_expanded, center_frame
+
     if root is not None:
         root.destroy()
 
@@ -320,16 +297,18 @@ def screen_control(conn, username):
 
     def opciones_menu(event):
         """Genera el menú de opciones con textos actualizados en cada apertura."""
-        submenu_items = [
-            ("Add items", [
-                ("Add Device", _Button_Funciones.add_device),
-                ("Add region", _Button_Funciones.add_region),
-                ("Add Town", _Button_Funciones.add_town)
-            ]),
-            ("Themes", _Button_Funciones.themes),
-            ("Background", _Button_Funciones.toggle_background)
-        ]
-        show_submenu(event, submenu_items)
+        menu = tk.Menu(None, tearoff=0, bg=C_fondo, fg="white")
+
+        # Submenú "Add items"
+        submenu_items = tk.Menu(menu, tearoff=0, bg=C_fondo, fg="white")
+        submenu_items.add_command(label="Add Device", command=lambda: print("add_device"))
+        menu.add_cascade(label="Add items", menu=submenu_items)
+
+        # Opción "Background"
+        menu.add_command(label="Background", command=lambda: center_frame.change_background())
+
+        # Mostrar menú en la posición del cursor
+        menu.post(event.x_root, event.y_root)
 
 
     btn_Options.bind("<Button-1>", opciones_menu)
@@ -367,7 +346,10 @@ def screen_control(conn, username):
 
     crear_treeview_dispositivos(left_frame, db_connection)
 
-    center_frame = ZoomableCanvas(main_frame, background)
+    #center_frame = ZoomableCanvas(main_frame, background)
+    #center_frame.pack(side="left", fill="both", expand=True)
+
+    center_frame = ZoomableCanvas(parent=main_frame, image_list=image_list)
     center_frame.pack(side="left", fill="both", expand=True)
 
     right_expanded = True
@@ -477,10 +459,10 @@ def crear_treeview_dispositivos(parent, conn):
     estructura = organizar_dispositivos_por_prefijo(dispositivos)
 
     # Configurar el fondo del contenedor principal
-    parent.config(bg=_Variables.C_fondo)
+    parent.config(bg=C_fondo)
 
     # Crear un marco principal
-    main_frame = tk.Frame(parent, bg=_Variables.C_fondo)
+    main_frame = tk.Frame(parent, bg=C_fondo)
     main_frame.pack(fill="both", expand=True)
 
     # Cuadro de búsqueda
@@ -546,7 +528,8 @@ def crear_treeview_dispositivos(parent, conn):
     
     # Menú contextual
     menu = tk.Menu(tree, tearoff=0)
-    menu.add_command(label="Ver detalles", command=lambda: print("Ver detalles"))
+    menu.add_command(label="Ver detalles", command=lambda: ver_detalles(tree, center_frame))
+    menu.add_command(label="Add Device", command=lambda: Add_device(tree, center_frame, size=(50, 50)))
     menu.add_command(label="Eliminar", command=lambda: print("Eliminar"))
     
     def mostrar_menu(event):

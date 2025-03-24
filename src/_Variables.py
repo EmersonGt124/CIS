@@ -14,7 +14,8 @@ import matplotlib.image as mpimg
 root = tk.Tk() #inicializar tk ventana root
 
 titulo = "CIS - LOGIN"
-icono_v = "lib/assets/Images/Logo/Logo.ico"
+#icono_v = "lib/assets/Images/Logo/Logo.ico"
+icono_v = os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib/assets/Images/Logo/Logo.ico"))
 
 ##########################
 	  #DATA
@@ -67,9 +68,9 @@ Equipo_router = "lib/assets/Images/control/router_good.png"
 Equipo_switch = "lib/assets/Images/control/switch_good.png"
 
 # Ruta Data save_settings
-save_settings = "lib/assets/config.json"
+setting = "lib/assets/config.json"
 
-backgrounds = [
+image_list = [
     "lib/assets/Images/Background/Map1.png",
     "lib/assets/Images/Background/Map2.png",
     "lib/assets/Images/Background/Map3.png",
@@ -78,9 +79,6 @@ backgrounds = [
     "lib/assets/Images/Background/Map6.png",
     "lib/assets/Images/Background/Map7.png"
 ]
-current_background_index = 0
-
-background = backgrounds[current_background_index]
 
 ##########################
 	#VENTANA COLORES
@@ -115,11 +113,6 @@ current_user = "username"
 btn_Home = None
 btn_Options = None
 btn_Help = None
-
-#FUNCION ETIQUETAS MAP
-img = mpimg.imread(background)
-region_tags = {}
-
 
 #Widgets
 Up_panel0 = None

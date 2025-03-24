@@ -1,62 +1,113 @@
-import json
+import tkinter as tk
+from tkinter import messagebox, Label, PhotoImage, Canvas, NW
+import re
 import os
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from tkinter import simpledialog, messagebox
+from PIL import Image, ImageTk
 
-from src._Variables import (
-    save_settings,
-    current_background_index, backgrounds,
-    center_frame
-    )
+from src._Variables import icono_v, Equipo_switch, Equipo_router
 
+# Lista de ciudades y sus prefijos
+ciudades = {
+    "MED": "MEDELLIN",
+    "CAL": "CALI",
+    "BAR": "BARRANQUILLA",
+    "BOG": "BOGOTA",
+    "BUC": "BUCARAMANGA"
+}
 
-def load_settings():
-    """Carga las configuraciones desde un archivo JSON o usa valores por defecto si no existe."""
-    if os.path.exists(save_settings):  # Verifica si el archivo existe
+def extraer_detalles(nombre_completo):
+    """ Extrae la ciudad, modelo, tipo y la IP del nombre del dispositivo """
+    match = re.search(r"^([A-Z]+)_(\w+)_([A-Z])\s*\(([\d\.]+)\)$", nombre_completo)
+    if match:
+        prefijo_ciudad, modelo, tipo, ip = match.groups()
+        ciudad = ciudades.get(prefijo_ciudad, "Desconocido")
+        tipo_equipo = {"R": "Router", "S": "Switch", "A": "Access Point"}.get(tipo, "Desconocido")
+        return ciudad, modelo, tipo_equipo, ip
+    return "Desconocido", "Desconocido", "Desconocido", "IP no disponible"
+
+def centrar_ventana(ventana, parent):
+    """ Centra la ventana emergente en la aplicación principal """
+    ventana.update_idletasks()
+    ancho = ventana.winfo_width()
+    alto = ventana.winfo_height()
+    x = parent.winfo_x() + (parent.winfo_width() - ancho) // 2
+    y = parent.winfo_y() + (parent.winfo_height() - alto) // 2
+    ventana.geometry(f"+{x}+{y}")
+
+def ver_detalles(tree, parent, icono_path=icono_v):
+    """ Muestra una ventana emergente con los detalles del dispositivo seleccionado """
+    item = tree.selection()
+    if not item:
+        messagebox.showwarning("Advertencia", "Seleccione un dispositivo primero")
+        return
+    
+    item_id = item[0]  
+    nombre_completo = tree.item(item_id, "text")  
+
+    ciudad, modelo, tipo_equipo, ip = extraer_detalles(nombre_completo)
+
+    # Crear una ventana emergente anclada al parent
+    ventana = tk.Toplevel(parent)
+    ventana.title("Device Details")
+    ventana.geometry("350x200")
+    ventana.transient(parent)  # Evita que quede detrás del frame principal
+    ventana.grab_set()  # Bloquea interacción con la ventana principal hasta cerrarla
+
+    # Agregar icono si se proporciona una ruta
+    if icono_path and os.path.exists(icono_path):
         try:
-            with open(save_settings, "r") as f:
-                settings = json.load(f)
-                current_background_index = settings.get("current_background_index", 0)
+            ventana.wm_iconbitmap(icono_path)  # SOLO PARA ARCHIVOS .ICO
+        except Exception as e:
+            print(f"Error al cargar el icono: {e}")
 
-                # Asegurar que el índice es válido antes de aplicarlo
-                if 0 <= current_background_index < len(backgrounds):
-                    background = backgrounds[current_background_index]
-                    #print(f"Fondo cargado correctamente: {_Variables.background}")
-                else:
-                    #print("Índice de fondo fuera de rango, usando fondo por defecto.")
-                    current_background_index = 0
-                    background = backgrounds[0]
+    # Mostrar detalles
+    tk.Label(ventana, text=f"{nombre_completo}", font=("Arial", 12, "bold")).pack(pady=5)
+    tk.Label(ventana, text=f"Ciudad: {ciudad}", font=("Arial", 10)).pack(pady=2)
+    tk.Label(ventana, text=f"Modelo: {modelo}", font=("Arial", 10)).pack(pady=2)
+    tk.Label(ventana, text=f"Tipo: {tipo_equipo}", font=("Arial", 10)).pack(pady=2)
+    tk.Label(ventana, text=f"IP: {ip}", font=("Arial", 10)).pack(pady=5)
 
-        except json.JSONDecodeError:
-            #print("Error en el archivo de configuración, restaurando valores por defecto.")
-            save_settings()  # Si el archivo está corrupto, se sobrescribe con valores por defecto.
+    tk.Button(ventana, text="Cerrar", command=ventana.destroy).pack(pady=10)
+
+    # Centrar la ventana en la aplicación
+    ventana.update_idletasks()
+    centrar_ventana(ventana, parent)
+
+#DEVICES CENTER
+def Add_device(tree, frame_center, size=(100, 100)):  
+    """ Superpone la imagen del equipo en frame_center sin perder la transparencia 
+        y permite redimensionarla al tamaño especificado. """
+    
+    item = tree.selection()
+    if not item:
+        return  # No hace nada si no hay selección
+    
+    nombre_completo = tree.item(item[0], "text")  # Obtener nombre del equipo
+
+    # Determinar la imagen según el tipo de equipo
+    if "_R" in nombre_completo:
+        img_path = Equipo_router
+    elif "_S" in nombre_completo:
+        img_path = Equipo_switch
     else:
-        #print("No se encontró el archivo de configuración, creando uno nuevo.")
-        save_settings()  # Si no existe, se crea con valores por defecto.
+        return  # No muestra imagen si no es router ni switch
 
-def save_settings():
-    """Guarda las configuraciones en un archivo JSON."""
-    settings = {
-        "current_background_index": current_background_index
-    }
-    with open(save_settings, "w") as f:
-        json.dump(settings, f, indent=4)
+    # Cargar la imagen con PIL y mantener transparencia
+    img_pil = Image.open(img_path).convert("RGBA")  
 
-#TOP BAR OPTIONS BUTTON
+    # Redimensionar la imagen al tamaño deseado
+    img_pil = img_pil.resize(size, Image.Resampling.LANCZOS)
 
-def add_device():
-    print("Seleccionado: Add Device")
+    img_tk = ImageTk.PhotoImage(img_pil)
 
-def themes():
-    print("Seleccionado: Themes")
+    # Crear un Canvas para manejar la imagen con transparencia
+    canvas = Canvas(frame_center, width=size[0], height=size[1], highlightthickness=0, bg=frame_center.cget("bg"))
+    canvas.create_image(0, 0, image=img_tk, anchor=NW)
 
-def toggle_background(): #Cambiar de fondo
-    current_background_index = (current_background_index + 1) % len(backgrounds)
+    # Eliminar imágenes previas y agregar la nueva
+    for widget in frame_center.winfo_children():
+        widget.destroy()
 
-    new_background = backgrounds[current_background_index]
-
-    if hasattr(center_frame) and center_frame:
-        center_frame.set_background(new_background)  
-        center_frame.update_idletasks()
-        save_settings()
+    canvas.image = img_tk  # Evita que la imagen sea eliminada por el recolector de basura
+    canvas.place(relx=0.5, rely=0.5, anchor="center")  # Centrar la imagen en el frame
+    canvas.lift()  # Traer la imagen al frente

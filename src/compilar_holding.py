@@ -2,8 +2,7 @@ import os
 import shutil
 
 # Ruta del icono
-icono_v = os.path.abspath("F:/Documentos/GitHub/LOGIN/lib/assets/Images/Logo/Logo.ico")
-
+icono_v = os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib/assets/Images/Logo/Logo.ico"))
 # Verificar si el icono existe antes de compilar
 if not os.path.exists(icono_v):
     print(f"Error: No se encontró el icono en {icono_v}")
