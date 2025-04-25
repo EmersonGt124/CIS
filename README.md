@@ -40,5 +40,5 @@ Este proyecto está licenciado bajo la [MIT License](LICENSE).
 Si deseas contribuir, por favor abre un **issue** o envía un **pull request**.
 
 ## Contacto
-Para dudas o sugerencias, puedes contactarme en notificaciones.netaplication@gmail.com](notificaciones.netaplication@gmail.com)
+Para dudas o sugerencias, puedes contactarme en [Send request](notificaciones.netaplication@gmail.com)
 
