@@ -12,7 +12,6 @@
 - 🌐 **Compatibilidad con varias marcas** y protocolos.
 
 ## Preview del sistema en acción
-<h3 align="center">Preview del sistema en acción</h3>
 <p align="center">
   <img src="docs/Design/readme-images/14.png" width="600"/>
 </p>
