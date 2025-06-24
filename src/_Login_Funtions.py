@@ -9,6 +9,10 @@ import psycopg2
 import os
 import subprocess
 
+import bcrypt
+import time
+
+
 #FUNCIONES Y VARIABLES INTERNAS
 from src._Variables	import (
 	dbname, user, host, port, Name_entry, Pass_entry,
@@ -183,8 +187,10 @@ def limpiar_frame(frame):
     frame.pack_forget()  # También ocultar en caso de que siga visible
     frame.destroy()  # Eliminar el frame completamente
 
+login_attempts = {}
+
 def iniciar_sesion(Name_entry, Pass_entry):
-    """Función principal del login en la interfaz"""
+    """Función principal del login en la interfaz con medidas de seguridad mejoradas."""
     if not verificar_conectividad():
         return
 
@@ -203,25 +209,46 @@ def iniciar_sesion(Name_entry, Pass_entry):
         alerta_ok("Advertencia", "Advertencia", "Por favor, ingrese usuario y contraseña.")
         return
 
-    user = login_usuario(conn, username, password)
+    # Bloqueo temporal tras demasiados intentos fallidos
+    if username in login_attempts and login_attempts[username]['attempts'] >= 3:
+        if time.time() - login_attempts[username]['timestamp'] < 60:  # 60 segundos de bloqueo
+            alerta_ok("Error", "Error", "Demasiados intentos fallidos. Intente de nuevo más tarde.")
+            return
+        else:
+            login_attempts[username] = {'attempts': 0, 'timestamp': time.time()}  # Reset de intentos
+
+    user = login_usuario(conn, username)
 
     if user:
-        user_id, username, rol_id = user
-        alerta_ok("Éxito", "Éxito", f"Inicio de sesión exitoso. {username}")
+        user_id, username_db, hashed_password, rol_id = user
 
-        # Guardar la conexión en _Variables para su uso posterior
-        db_connection = conn
-        current_user = username
+        if bcrypt.checkpw(password.encode(), hashed_password.encode()):
+            alerta_ok("Éxito", "Éxito", f"Inicio de sesión exitoso. {username}")
 
-        limpiar_frame(Centro_p)
+            # Reset de intentos fallidos tras éxito
+            if username in login_attempts:
+                del login_attempts[username]
 
-        # Llamar a la nueva pantalla
-        #load_settings()
-        screen_control(conn, username)
+            # Guardar la conexión en variables globales
+            db_connection = conn
+            current_user = username_db
 
-    else:
-        alerta_ok("Error", "Error", "Usuario o contraseña incorrectos.")
-        conn.close()
+            limpiar_frame(Centro_p)
+            screen_control(conn, username_db)
+            return
+
+    # Manejo de fallos en autenticación
+    alerta_ok("Error", "Error", "Usuario o contraseña incorrectos.")
+    login_attempts.setdefault(username, {'attempts': 0, 'timestamp': time.time()})
+    login_attempts[username]['attempts'] += 1
+    login_attempts[username]['timestamp'] = time.time()
+    conn.close()
+
+def login_usuario(conn, username):
+    """Consulta segura a la base de datos para recuperar usuario y contraseña hasheada."""
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, password_hash, rol_id FROM usuarios WHERE username = %s", (username,))
+    return cur.fetchone()
 
 def login_funcion():
 

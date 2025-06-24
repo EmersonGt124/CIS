@@ -3,19 +3,20 @@ import tkinter as tk
 from tkinter import ttk
 import psycopg2
 from PIL import Image, ImageTk
+import os
 
 # FUNCIONES Y VARIABLES INTERNAS
 from src._Variables import (
     left_expanded, left_frame, left_toggle_button, 
     right_expanded, right_frame, right_toggle_button,
     C_fondo, C_texto_blanco, C_fondo_2, C_texto_Azul, C_fondo_2,
-    fuente, icono_v, image_list,
+    fuente, icono_v, image_list, B_selecion,
     db_connection,
     btn_Home, btn_Options, btn_Help,
     root, center_frame
     )
 
-from src._Button_Funtions import ver_detalles, Add_device
+from src._Button_Funtions import ver_detalles, Add_device, save_setting_to_json, load_settings_from_json
 
 active_menus = []
 
@@ -150,20 +151,29 @@ class ZoomableCanvas(tk.Frame):
         self.canvas = tk.Canvas(self, bg=C_fondo, highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
-        # Configuración de zoom
+        # Configuración predeterminada de zoom
         self.zoom_factor = 1.0
         self.zoom_step = 0.2
         self.max_zoom = 3.0
         self.min_zoom = 1.0
 
+        # Cargar configuración desde JSON antes de inicializar imágenes
+        settings = load_settings_from_json()
+        self.zoom_factor = settings.get("zoom_factor", self.zoom_factor)
+
         # Lista de imágenes y control de índice
         self.image_list = image_list  
         self.image_index = 0  # Índice inicial
-        self.image_path = self.image_list[self.image_index]  
-        self.image_id = None  
 
-        # Cargar la primera imagen
-        self.set_background(self.image_path)
+        # Intentar cargar el fondo guardado
+        background_path = settings.get("background")
+        if background_path and os.path.exists(background_path):
+            self.image_path = background_path
+        else:
+            self.image_path = self.image_list[self.image_index]  # Imagen por defecto
+
+        self.image_id = None  
+        self.set_background(self.image_path)  # Aplicar la imagen correcta
 
         # Eventos del canvas
         self.canvas.bind("<MouseWheel>", self.on_mouse_scroll)  
@@ -214,7 +224,7 @@ class ZoomableCanvas(tk.Frame):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def set_background(self, new_image_path):
-        """Cambia dinámicamente el fondo del canvas."""
+        """Cambia dinámicamente el fondo del canvas y lo guarda en JSON."""
         try:
             if not new_image_path:
                 return
@@ -223,8 +233,12 @@ class ZoomableCanvas(tk.Frame):
             self.image_path = new_image_path
             self.update_image()
 
+            # Guardar en JSON usando la función reutilizable
+            save_setting_to_json("background", self.image_path)
+
         except Exception as e:
             print(f"Error al cargar la imagen: {e}")
+
 
     def change_background(self):
         """Cambia la imagen de fondo a la siguiente en la lista."""
@@ -233,7 +247,7 @@ class ZoomableCanvas(tk.Frame):
         self.set_background(new_image_path)
 
     def on_mouse_scroll(self, event):
-        """Ajusta el zoom dentro de los límites establecidos."""
+        """Ajusta el zoom dentro de los límites establecidos y lo guarda."""
         zoom_x = self.canvas.canvasx(event.x)
         zoom_y = self.canvas.canvasy(event.y)
 
@@ -243,6 +257,9 @@ class ZoomableCanvas(tk.Frame):
             self.zoom_factor = max(self.min_zoom, self.zoom_factor - self.zoom_step)  
 
         self.update_image(zoom_x, zoom_y)
+
+        # Guardar el zoom en JSON
+        save_setting_to_json("zoom_factor", self.zoom_factor)
 
     def start_move(self, event):
         """Registra la posición inicial del mouse para el desplazamiento."""
@@ -301,7 +318,7 @@ def screen_control(conn, username):
 
         # Submenú "Add items"
         submenu_items = tk.Menu(menu, tearoff=0, bg=C_fondo, fg="white")
-        submenu_items.add_command(label="Add Device", command=lambda: print("add_device"))
+        submenu_items.add_command(label="Add Device", command=lambda: Add_device(tree, center_frame, size=(50, 50)))
         menu.add_cascade(label="Add items", menu=submenu_items)
 
         # Opción "Background"
@@ -345,9 +362,6 @@ def screen_control(conn, username):
     left_toggle_button.pack(side="right", fill="y")
 
     crear_treeview_dispositivos(left_frame, db_connection)
-
-    #center_frame = ZoomableCanvas(main_frame, background)
-    #center_frame.pack(side="left", fill="both", expand=True)
 
     center_frame = ZoomableCanvas(parent=main_frame, image_list=image_list)
     center_frame.pack(side="left", fill="both", expand=True)
@@ -455,6 +469,8 @@ def poblar_treeview(tree, estructura):
                         #print("ERROR: El equipo no tiene la estructura esperada:", equipo)
 
 def crear_treeview_dispositivos(parent, conn):
+    global tree
+
     dispositivos = obtener_dispositivos(conn)
     estructura = organizar_dispositivos_por_prefijo(dispositivos)
 
@@ -528,7 +544,12 @@ def crear_treeview_dispositivos(parent, conn):
     
     # Menú contextual
     menu = tk.Menu(tree, tearoff=0)
-    menu.add_command(label="Ver detalles", command=lambda: ver_detalles(tree, center_frame))
+    menu.configure(
+    background=C_fondo,  # Color de fondo del menú
+    foreground=C_texto_blanco,   # Color del texto (opcional, no siempre se aplica)
+    activebackground=C_fondo_2,  # Color cuando se pasa el mouse
+    )
+    menu.add_command(label="Ver detalles", command=lambda: ver_detalles(tree, center_frame, icono_v))
     menu.add_command(label="Add Device", command=lambda: Add_device(tree, center_frame, size=(50, 50)))
     menu.add_command(label="Eliminar", command=lambda: print("Eliminar"))
     

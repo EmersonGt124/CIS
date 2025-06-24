@@ -1,3 +1,7 @@
 {
-    "current_background_index": 4
+    "current_background_index": 4,
+    "settings": {
+        "background": "lib/assets/Images/Background/Map5.png",
+        "zoom_factor": 1.9999999999999998
+    }
 }
