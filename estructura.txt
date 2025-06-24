@@ -1,5 +1,11 @@
-- LOGIN/
+- CIS/
+  - .gitattributes
+  - .gitignore
+  - LICENSE
   - main.py
+  - README.md
+  - requirements.txt
+  - temp_device.gif
   - lib/
     - assets/
       - config.json
@@ -13,8 +19,6 @@
           - Map6.png
           - Map7.png
         - Control/
-          - router_bad.png
-          - router_good.png
           - Switch_bad.png
           - Switch_good.png
         - Holding/
@@ -44,6 +48,7 @@
   - src/
     - compilar_holding.py
     - compilar_Proyect.py
+    - Screen_Holding.spec
     - Test.py
     - _Alerts.py
     - _Button_Funtions.py
@@ -51,3 +56,20 @@
     - _Login_Funtions.py
     - _Screen_Holding.py
     - _Variables.py
+    - build/
+      - Screen_Holding/
+        - Analysis-00.toc
+        - base_library.zip
+        - EXE-00.toc
+        - PKG-00.toc
+        - PYZ-00.pyz
+        - PYZ-00.toc
+        - Screen_Holding.pkg
+        - warn-Screen_Holding.txt
+        - xref-Screen_Holding.html
+        - localpycs/
+          - pyimod01_archive.pyc
+          - pyimod02_importers.pyc
+          - pyimod03_ctypes.pyc
+          - pyimod04_pywin32.pyc
+          - struct.pyc
