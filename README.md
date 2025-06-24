@@ -12,9 +12,10 @@
 - 🌐 **Compatibilidad con varias marcas** y protocolos.
 
 ## Preview del sistema en acción
-<p align="center">
-  <img src="readmeimg/14.png" width="600"/>
-</p>
+for i in range(1, 15):
+    print(f'''<p align="center">
+  <img src="readmeimg/{i}.png" width="600"/>
+</p>''')
 
 
 ## Tecnologías Utilizadas
