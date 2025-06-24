@@ -13,7 +13,7 @@
 
 ## Preview del sistema en acción
 <p align="center">
-  <img src="docs/Design/readme-images/14.png" width="600"/>
+  <img src="readmeimg/14.png" width="600"/>
 </p>
 
 
